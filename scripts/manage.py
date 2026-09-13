@@ -156,27 +156,61 @@ def install(zshrc, data, python, zsh):
     print("Approve the reader script in iTerm2 when prompted. No OpenAI API key is needed.")
 
 
-def uninstall(zshrc, data, zsh):
+def uninstall(zshrc, data, zsh, restore_legacy=False, legacy_dir=None):
     original = zshrc.read_text() if zshrc.exists() else ""
-    region = block_span(original, START, END)
-    if not data.exists() and not region:
-        print("Already uninstalled.")
-        return
-    manifest = load_manifest(data)
-    if manifest.get("zshrc") != str(zshrc):
+    managed = block_span(original, START, END)
+    legacy = block_span(original, LEGACY_START, LEGACY_END)
+    manifest = load_manifest(data) if data.exists() else {}
+    if manifest and manifest.get("zshrc") != str(zshrc):
         raise RuntimeError("This installation belongs to a different .zshrc.")
-    if region:
-        a, b = region
-        new_text = original[:a] + manifest.get("legacy_block", "") + original[b:]
-        validate_text(new_text, zsh)
+    if managed and original[managed[0]:managed[1]] != snippet(data):
+        raise RuntimeError("The managed source block has been edited; refusing to remove it.")
+    if legacy:
+        block = original[legacy[0]:legacy[1]]
+        if "_codex_fix_explain" not in block or "ask()" not in block:
+            raise RuntimeError("Unrecognized legacy block; refusing to remove it.")
+    if restore_legacy and managed and legacy:
+        raise RuntimeError("Both shell blocks exist; cannot safely restore the legacy block.")
+
+    reader = None
+    if not restore_legacy and legacy_dir is not None:
+        candidate = legacy_dir / "iterm2_last_output.py"
+        if candidate.exists():
+            if candidate.is_symlink() or legacy_dir.is_symlink():
+                raise RuntimeError("The legacy reader is a symlink; refusing to remove it.")
+            text = candidate.read_text()
+            if not all(marker in text for marker in (
+                    "def read_output(", "iterm2.async_list_prompts", "def is_fix(")):
+                raise RuntimeError("Unrecognized legacy reader; refusing to remove it.")
+            reader = candidate
+
+    new_text = original
+    for region, replacement in sorted(
+            [(managed, manifest.get("legacy_block", "") if restore_legacy else ""),
+             (legacy, original[legacy[0]:legacy[1]] if restore_legacy and legacy else "")],
+            key=lambda item: item[0][0] if item[0] else -1, reverse=True):
+        if region:
+            start, end = region
+            new_text = new_text[:start] + replacement + new_text[end:]
+    validate_text(new_text, zsh)
+    if new_text != original:
         backup = backup_zshrc(zshrc)
         atomic_text(zshrc, new_text)
         print(f"Shell backup: {backup}")
-    shutil.rmtree(data)
-    print("Uninstalled. Close this shell and open a new one to unload existing functions.")
-    if manifest.get("legacy_block"):
-        print("Your previous legacy ask/fix block was restored.")
-    print("Codex credentials, iTerm2 settings, and shell backups were left in place.")
+    if reader:
+        # Move, rather than destroy, the previous standalone reader.
+        backup = reader.with_name(reader.name + ".backup-uninstalled-" + uuid.uuid4().hex[:10])
+        reader.rename(backup)
+        print(f"Legacy reader disabled; backup: {backup}")
+    if data.exists():
+        shutil.rmtree(data)
+    if not managed and not legacy and not manifest and not reader:
+        print("Already uninstalled.")
+    else:
+        print("Uninstalled. Close this shell and open a new one to unload existing functions.")
+    if restore_legacy and manifest.get("legacy_block"):
+        print("Your previous legacy ask/fix block was restored by request.")
+    print("Codex credentials, iTerm2 settings, unrelated functions, and backups were left in place.")
 
 
 def main():
@@ -186,6 +220,7 @@ def main():
     parser.add_argument("--zshrc", type=Path, help="Target shell config; defaults to HOME/.zshrc")
     parser.add_argument("--data-dir", type=Path, help="Installation directory; defaults to HOME/.local/share/codex-shell-assistant")
     parser.add_argument("--python", default=sys.executable, help="Python 3.9+ interpreter for the isolated environment")
+    parser.add_argument("--restore-legacy", action="store_true", help="On uninstall only: restore the previous inline setup instead of removing it")
     args = parser.parse_args()
     if sys.version_info < (3, 9):
         parser.error("Python 3.9 or newer is required.")
@@ -202,7 +237,8 @@ def main():
         if args.action == "install":
             install(zshrc, data, args.python, zsh)
         else:
-            uninstall(zshrc, data, zsh)
+            uninstall(zshrc, data, zsh, args.restore_legacy,
+                      args.home.expanduser().absolute() / ".local/share/codex-shell")
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

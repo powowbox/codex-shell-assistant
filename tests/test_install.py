@@ -44,13 +44,41 @@ class InstallationTests(unittest.TestCase):
         self.assertFalse(self.data.exists())
         manage.uninstall(self.rc, self.data, self.zsh)
 
-    def test_legacy_restored_after_reinstall(self):
+    def test_legacy_restored_only_when_requested_after_reinstall(self):
         original = "# before\n" + manage.LEGACY_START + "\n_codex_fix_explain() { :; }\nask() { :; }\n" + manage.LEGACY_END + "\n# after\n"
         self.rc.write_text(original)
         self.install()
         self.install()
-        manage.uninstall(self.rc, self.data, self.zsh)
+        manage.uninstall(self.rc, self.data, self.zsh, restore_legacy=True)
         self.assertEqual(self.rc.read_text(), original)
+
+    def test_original_inline_setup_removed_without_package_install(self):
+        prefix = '# user configuration\nalias rm=trash\n'
+        legacy = manage.LEGACY_START + '\n_codex_fix_explain() { :; }\nask() { :; }\n' + manage.LEGACY_END + '\n'
+        self.rc.write_text(prefix + legacy + '# later edit\n')
+        reader_dir = self.home / 'legacy-reader'
+        reader_dir.mkdir()
+        reader = reader_dir / 'iterm2_last_output.py'
+        reader.write_text('def read_output():\n    iterm2.async_list_prompts()\ndef is_fix(): pass\n')
+        (reader_dir / 'unrelated.txt').write_text('keep')
+        manage.uninstall(self.rc, self.data, self.zsh, legacy_dir=reader_dir)
+        self.assertEqual(self.rc.read_text(), prefix + '# later edit\n')
+        self.assertFalse(reader.exists())
+        self.assertEqual((reader_dir / 'unrelated.txt').read_text(), 'keep')
+        self.assertEqual(len(list(reader_dir.glob('*.backup-uninstalled-*'))), 1)
+        manage.uninstall(self.rc, self.data, self.zsh, legacy_dir=reader_dir)
+
+    def test_migrated_setup_removed_by_default(self):
+        legacy = manage.LEGACY_START + '\n_codex_fix_explain() { :; }\nask() { :; }\n' + manage.LEGACY_END + '\n'
+        self.rc.write_text('# before\n' + legacy + '# after\n')
+        self.install()
+        manage.uninstall(self.rc, self.data, self.zsh)
+        self.assertEqual(self.rc.read_text(), '# before\n# after\n')
+
+    def test_missing_runtime_still_removes_owned_source_block(self):
+        self.rc.write_text('# user\n' + manage.snippet(self.data))
+        manage.uninstall(self.rc, self.data, self.zsh)
+        self.assertEqual(self.rc.read_text(), '# user\n')
 
     def test_dependency_failure_rolls_back(self):
         self.rc.write_text("# user\n")
