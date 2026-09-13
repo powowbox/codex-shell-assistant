@@ -5,7 +5,7 @@ Two small zsh helpers for macOS:
 - **`ask`** generates a shell command and places it in your next input line. Edit it or press Return to execute it. It is never executed automatically.
 - **`fix`** explains the previous command's failure using its command text, working directory, exit status, and output read from the originating iTerm2 pane.
 
-Both helpers use the **Codex CLI and its existing sign-in**, display a spinner while waiting, and respond. The iTerm2 Python API is local; the iTerm2 AI plugin and an OpenAI API key are not needed for this setup.
+Both helpers use the **Codex CLI and its existing sign-in**. Contrary to the iTerm2 AI integration, **It works with your open-ai subscription and any OPEN API key is required**. The iTerm2 Python API is local; the iTerm2 AI plugin is not needed for this setup.
 
 ## Requirements
 
