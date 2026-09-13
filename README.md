@@ -5,14 +5,14 @@ Two small zsh helpers for macOS:
 - **`ask`** generates a shell command and places it in your next input line. Edit it or press Return to execute it. It is never executed automatically.
 - **`fix`** explains the previous command's failure using its command text, working directory, exit status, and output read from the originating iTerm2 pane.
 
-Both helpers use the **Codex CLI and its existing sign-in**. Contrary to the iTerm2 AI integration, **It works with your open-ai subscription and any OPEN API key is required**. The iTerm2 Python API is local; the iTerm2 AI plugin is not needed for this setup.
+Both helpers use the **Codex CLI and its existing sign-in**. Contrary to the iTerm2 AI integration, **It works with your open-ai subscription and any OPEN API key isn't required**. The iTerm2 Python API is local; the iTerm2 AI plugin is not needed for this setup.
 
 ## Requirements
 
 - macOS with zsh (Oh My Zsh is optional).
 - Python **3.9+** with `venv` and pip.
 - A signed-in Codex CLI on `PATH`. Run `codex login` if needed.
-- A recent Codex CLI with `--ignore-user-config`, `--ephemeral`, `--output-last-message`, and the feature flags used in `src/codex-shell.zsh`.
+- A recent Codex CLI.
 - For automatic output capture: **iTerm2**, Shell Integration, and its Python API enabled.
 
 The original setup used iTerm2 **3.7.1**, Python **3.9**, the `iterm2` Python package **2.23**, and Codex CLI **0.154.0**. Tests use real protocol messages to cover the SDK's incorrect `PromptState.FINISHED` mapping.
