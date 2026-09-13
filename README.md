@@ -118,19 +118,6 @@ Tests cover fresh installation, reinstall, explicit legacy restoration, original
 
 For a live check, reload the shell, run a harmless failing command such as `ls /a-path-that-does-not-exist`, then `fix`. Confirm that the response refers to that actual error. Try `ask 'Print hello'` and verify the suggestion waits for Return.
 
-## Publish over SSH
-
-Create an **empty** GitHub repository named `codex-shell-assistant` under your account (do not initialize it with a README). Then, if needed:
-
-```sh
-git remote add origin git@github.com:YOUR_USERNAME/codex-shell-assistant.git
-git push -u origin main
-```
-
-If `origin` already exists, inspect it with `git remote -v` instead of adding it again. SSH authentication can be checked with `ssh -T git@github.com`; GitHub's successful greeting normally exits with status 1 because shell access is not provided.
-
-Private keys, authentication files, local terminal output, and the user's `.zshrc` do not belong in this repository. No license has been selected; add one before offering a license grant to others.
-
 ## References
 
 - [iTerm2 Python API](https://iterm2.com/python-api/)
