@@ -5,7 +5,7 @@ Two small zsh helpers for macOS:
 - **`ask`** generates a shell command and places it in your next input line. Edit it or press Return to execute it. It is never executed automatically.
 - **`fix`** explains the previous command's failure using its command text, working directory, exit status, and output read from the originating iTerm2 pane.
 
-Both helpers use the **Codex CLI and its existing sign-in**, display a spinner while waiting, and respond in **English**. The iTerm2 Python API is local; the iTerm2 AI plugin and an OpenAI API key are not needed for this setup.
+Both helpers use the **Codex CLI and its existing sign-in**, display a spinner while waiting, and respond. The iTerm2 Python API is local; the iTerm2 AI plugin and an OpenAI API key are not needed for this setup.
 
 ## Requirements
 
@@ -37,7 +37,7 @@ The installer:
 
 It preserves aliases, completion setup, plugins, and other hooks. Re-running it updates the same installation without adding duplicate source blocks. It does not edit Codex authentication/configuration, iTerm2 preferences, or SSH keys.
 
-**Migrating the original inline setup:** the installer recognizes the `# --- Codex shell assistant ---` / `# end codex block` block created during development. It replaces only that block and records it for restoration on uninstall. The older `~/.local/share/codex-shell` reader is left in place so that restoration remains possible. Unrecognized or duplicate blocks are refused.
+**Migrating the original inline setup:** the installer recognizes the `# --- Codex shell assistant ---` / `# end codex block` block created during development. It replaces only that block and records it for optional restoration with `./uninstall.sh --restore-legacy`. The older `~/.local/share/codex-shell` reader is left in place so that optional restoration remains possible. Unrecognized or duplicate blocks are refused.
 
 To select a Python interpreter or alternative paths:
 
@@ -60,7 +60,7 @@ On the first `fix`, approve the Python reader if iTerm2 requests access. Reading
 ask 'Show the 10 largest Docker images'
 # A command appears in the next input line. Review it, then press Return.
 
-docker compose up
+ls /a-path-that-does-not-exist`
 fix
 
 # Supply context manually, including outside iTerm2:
@@ -98,9 +98,11 @@ Each Codex invocation uses a temporary neutral directory, ignores user configura
 ./uninstall.sh
 ```
 
-This backs up `.zshrc`, removes the managed source block, and deletes only the runtime directory bearing this package's ownership manifest. If installation migrated a legacy block, that exact block is restored instead. Later edits elsewhere in `.zshrc` are preserved.
+This backs up `.zshrc`, removes both recognized packaged and original inline ask/fix blocks, and deletes only the runtime directory bearing this package's ownership manifest. It also works if you only used the original inline setup and never ran the package installer. The original standalone iTerm2 reader is renamed to a backup, not left active. Later edits elsewhere in `.zshrc` are preserved.
 
-Open a **new shell** afterward; functions already loaded into a running shell remain in memory. Shell backups, Codex credentials, iTerm2 settings, and any pre-existing legacy reader remain untouched. An unowned installation directory will never be deleted.
+To deliberately return to the original inline setup after a package migration, use `./uninstall.sh --restore-legacy` instead. Restoration is never the default.
+
+Open a **new shell** afterward; functions already loaded into a running shell remain in memory. Shell backups, Codex credentials, iTerm2 settings, and unrelated functions remain untouched. In a migrated setup, `--restore-legacy` also keeps the old reader active. An unowned installation directory will never be deleted.
 
 ## Tests
 
@@ -112,7 +114,7 @@ zsh -n src/codex-shell.zsh
 bash -n install.sh uninstall.sh
 ```
 
-Tests cover fresh installation, reinstall, legacy restoration, preserving unrelated edits, dependency-failure rollback, installation ownership, protocol state handling, pane/command matching, expired scrollback, wrapping, truncation, and concise errors. Installer tests mock dependency downloads and Codex; reader tests mock the live API. They do not run generated commands or use a model. GitHub Actions runs these checks on macOS.
+Tests cover fresh installation, reinstall, explicit legacy restoration, original-inline removal, preserving unrelated edits, dependency-failure rollback, installation ownership, protocol state handling, pane/command matching, expired scrollback, wrapping, truncation, and concise errors. Installer tests mock dependency downloads and Codex; reader tests mock the live API. They do not run generated commands or use a model. GitHub Actions runs these checks on macOS.
 
 For a live check, reload the shell, run a harmless failing command such as `ls /a-path-that-does-not-exist`, then `fix`. Confirm that the response refers to that actual error. Try `ask 'Print hello'` and verify the suggestion waits for Return.
 
